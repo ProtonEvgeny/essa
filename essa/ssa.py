@@ -34,8 +34,6 @@ class SSA:
         """
         Build Hankel trajectory matrix from time series.
         """
-        # n = len(series)
-        # k = n - self.window_size + 1
         return np.lib.stride_tricks.sliding_window_view(series, self.window_size).T
 
     def _diagonal_averaging(self, matrix: np.ndarray) -> np.ndarray:
@@ -61,10 +59,10 @@ class SSA:
     def reconstruct(self, groups: Union[List[int], List[List[int]]]) -> np.ndarray:
         if not hasattr(self, "components_"):
             raise ValueError("decompose must be called before reconstruct")
-        if all(isinstance(g, list) for g in groups):
-            grouped_matrix = sum(sum(self.components_[i] for i in group) for group in groups)
-        else:
-            grouped_matrix = sum(self.components_[i] for i in groups)
+        grouped_matrix = sum(
+            sum(self.components_[i] for i in group) if isinstance(group, list) else self.components_[group]
+            for group in groups
+        )
         return self._diagonal_averaging(grouped_matrix)
 
     def ssa(self, series: np.ndarray, groups: List[List[int]]) -> np.ndarray:
