@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import svd as full_svd
 from sklearn.utils.extmath import randomized_svd
-from typing import List, Union
+from typing import List, Union, Tuple
 
 class SSA:
     """
@@ -47,12 +47,16 @@ class SSA:
             reconstructed[k + m - 1] = diagonal.mean()
         return reconstructed
 
+    def _svd(self, matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if self.svd_method == "full":
+            U, s, Vt = full_svd(matrix, full_matrices=False)
+        else:
+            U, s, Vt = randomized_svd(matrix, n_components=self.n_components)
+        return U, s, Vt
+
     def decompose(self, series: np.ndarray) -> List[np.ndarray]:
         X = self._trajectory_matrix(series)
-        if self.svd_method == "full":
-            U, s, Vt = full_svd(X, full_matrices=False)
-        else:
-            U, s, Vt = randomized_svd(X, n_components=self.n_components)
+        U, s, Vt = self._svd(X)
         self.components_ = [s[i] * np.outer(U[:, i], Vt[i, :]) for i in range(len(s))]
         return self.components_
 
