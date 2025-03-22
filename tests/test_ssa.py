@@ -14,6 +14,11 @@ def test_ssa_initialization():
     assert ssa.window_size == 10
     assert ssa.svd_method == "randomized"
     assert ssa.n_components == 5
+
+    # Test Toeplitz SSA initialization
+    ssa = SSA(window_size=10, ssa_method="toeplitz")
+    assert ssa.window_size == 10
+    assert ssa.ssa_method == "toeplitz"
     
     # Test invalid SVD method
     with pytest.raises(ValueError):
@@ -30,6 +35,30 @@ def test_decomposition_reconstruction():
     
     # Test decomposition
     ssa = SSA(window_size=20)
+    components = ssa.decompose(series)
+    
+    # Check number of components
+    assert len(components) == 20
+    
+    # Test reconstruction with single component
+    reconstructed = ssa.reconstruct([0])
+    assert reconstructed.shape == series.shape
+    
+    # Test reconstruction with multiple components
+    reconstructed = ssa.reconstruct([0, 1])
+    assert reconstructed.shape == series.shape
+    
+    # Test reconstruction with grouped components
+    reconstructed = ssa.reconstruct([[0], [1, 2]])
+    assert reconstructed.shape == series.shape
+
+def test_toeplitz_decomposition():
+    # Generate synthetic data
+    t = np.linspace(0, 2*np.pi, 100)
+    series = np.sin(t) + 0.5*np.sin(3*t)
+    
+    # Test Toeplitz decomposition
+    ssa = SSA(window_size=20, ssa_method="toeplitz")
     components = ssa.decompose(series)
     
     # Check number of components
