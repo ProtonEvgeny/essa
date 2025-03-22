@@ -18,11 +18,15 @@ class SSA:
     >>> reconstructed = model.reconstruct(components)
     """
     def __init__(
-        self, window_size: int, svd_method: str = "full", n_components: int = None
+        self, window_size: int, ssa_method: str = "basic", svd_method: str = "full", n_components: int = None
     ):
         self.window_size = window_size
+        self.ssa_method = ssa_method
         self.svd_method = svd_method
         self.n_components = n_components or window_size
+
+        if ssa_method not in ["basic", "toeplitz"]:
+            raise ValueError("ssa_method must be 'basic' or 'toeplitz'")
 
         if svd_method not in ["full", "randomized"]:
             raise ValueError("svd_method must be 'full' or 'randomized'")
@@ -50,14 +54,49 @@ class SSA:
     def _svd(self, matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if self.svd_method == "full":
             U, s, Vt = full_svd(matrix, full_matrices=False)
-        else:
+        elif self.svd_method == "randomized":
             U, s, Vt = randomized_svd(matrix, n_components=self.n_components)
+        else:
+            raise ValueError("svd_method must be 'full' or 'randomized'")
         return U, s, Vt
 
+    def _toeplitz_covariance(self, series: np.ndarray) -> np.ndarray:
+        L = self.window_size
+        N = len(series)
+        centered_series = series - np.mean(series)
+        C_tilde = np.zeros((L, L))
+        for k in range(L):
+            if k >= N: 
+                continue
+            val = np.sum(centered_series[:N - k] * centered_series[k:]) / (N - k)
+            for i in range(L - k):
+                C_tilde[i, i + k] = val
+                C_tilde[i + k, i] = val
+        return C_tilde
+
     def decompose(self, series: np.ndarray) -> List[np.ndarray]:
+        """
+        Decompose the time series into components.
+        """
         X = self._trajectory_matrix(series)
-        U, s, Vt = self._svd(X)
-        self.components_ = [s[i] * np.outer(U[:, i], Vt[i, :]) for i in range(len(s))]
+        if self.ssa_method == 'basic':
+            U, s, Vt = self._svd(X)
+            self.components_ = [s[i] * np.outer(U[:, i], Vt[i, :]) for i in range(len(s))]
+        elif self.ssa_method == "toeplitz":
+            C_tilde = self._toeplitz_covariance(series)
+            eig_vals, eig_vecs = np.linalg.eigh(C_tilde)
+            sigma = [
+                np.linalg.norm(X.T @ eig_vecs[:, i]) for i in range(eig_vecs.shape[1])
+            ]
+            order = np.argsort(sigma)[::-1]
+            self.components_ = []
+            for idx in order:
+                P = eig_vecs[:, idx]
+                Q = (X.T @ P) / sigma[idx]
+                component = sigma[idx] * np.outer(P, Q)
+                self.components_.append(component)
+        else:
+            raise ValueError("ssa_method must be 'basic' or 'toeplitz'")
         return self.components_
 
     def reconstruct(self, groups: Union[List[int], List[List[int]]]) -> np.ndarray:
