@@ -12,13 +12,14 @@ pip install essa
 
 - Fast implementation of SSA using vectorized operations
 - Support for both full SVD and randomized SVD for large datasets
+- Support for Toeplitz SSA method for stationary series
 - Simple API for decomposition and reconstruction
 - Compatible with NumPy arrays
 
 ## Usage Example
 
 ```python
-from essa import SSA
+from essa import Decompose, reconstruct
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,16 +27,14 @@ import matplotlib.pyplot as plt
 t = np.linspace(0, 2*np.pi, 100)
 series = np.sin(t) + 0.5*np.sin(3*t)
 
-# Create SSA model with window size of 20
-model = SSA(20)
-
-# Decompose the time series
-components = model.decompose(series)
+# Create decomposer with window size of 20
+decomposer = Decompose(time_series=series, window_size=20)
+decomposer.fit()  # Perform decomposition
 
 # Reconstruct components
-trend = model.reconstruct([[0]])
-seasonal = model.reconstruct([[1, 2]])
-noise = model.reconstruct([3])
+trend = reconstruct(decomposer, [[0]])[0]  # First component as trend
+seasonal = reconstruct(decomposer, [[1, 2]])[0]  # 2nd and 3rd components as seasonality
+noise = reconstruct(decomposer, [[3]])[0]  # 4th component as noise
 
 # Plot results
 plt.figure(figsize=(10, 6))
@@ -50,25 +49,52 @@ plt.ylabel('Value')
 plt.show()
 ```
 
-## API Reference
-
-### SSA Class
+## Toeplitz SSA Example
 
 ```python
-SSA(window_size, svd_method='full', n_components=None)
+# For stationary time series, Toeplitz SSA may provide better results
+decomposer = Decompose(time_series=series, window_size=20, method="toeplitz")
+decomposer.fit()
+
+# Reconstruct components
+trend = reconstruct(decomposer, [[0]])[0]
+seasonal = reconstruct(decomposer, [[1, 2, 3]])[0]
+# ... rest of analysis
+```
+
+## API Reference
+
+### Decompose Class
+
+```python
+Decompose(time_series, window_size, method="basic", svd_method=None)
 ```
 
 **Parameters:**
 
+- `time_series` (np.ndarray): The time series data to analyze
 - `window_size` (int): The embedding window length (L)
-- `svd_method` (str): 'full' for exact SVD or 'randomized' for approximate (default: 'full')
-- `n_components` (int): Number of components for randomized SVD (default: None)
+- `method` (str): SSA method to use - 'basic' (default) or 'toeplitz'
+- `svd_method` (str): Only for basic method - 'full' for exact SVD or 'randomized' for approximate (default: 'full')
 
 **Methods:**
 
-- `decompose(series)`: Decompose time series into components
-- `reconstruct(groups)`: Reconstruct time series from selected components
-- `ssa(series, groups)`: Perform decomposition and reconstruction in one step
+- `fit()`: Perform decomposition and store components
+
+### reconstruct Function
+
+```python
+reconstruct(decomposer, groups)
+```
+
+**Parameters:**
+
+- `decomposer`: A fitted Decompose object
+- `groups` (List[List[int]]): List of component groups to reconstruct
+
+**Returns:**
+
+- Array of reconstructed components for each group
 
 ## License
 
@@ -85,4 +111,3 @@ If you use this package in your research, please cite:
   year = {2025},
   url = {https://github.com/ProtonEvgeny/essa}
 }
-```
