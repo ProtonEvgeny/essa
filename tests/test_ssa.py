@@ -1,89 +1,118 @@
 import numpy as np
 import pytest
-from essa import SSA
+from essa import Decompose, reconstruct
 
-def test_ssa_initialization():
-    # Test valid initialization
-    ssa = SSA(window_size=10)
-    assert ssa.window_size == 10
-    assert ssa.svd_method == "full"
-    assert ssa.n_components == 10
-    
-    # Test with randomized SVD
-    ssa = SSA(window_size=10, svd_method="randomized", n_components=5)
-    assert ssa.window_size == 10
-    assert ssa.svd_method == "randomized"
-    assert ssa.n_components == 5
-
-    # Test Toeplitz SSA initialization
-    ssa = SSA(window_size=10, ssa_method="toeplitz")
-    assert ssa.window_size == 10
-    assert ssa.ssa_method == "toeplitz"
-    
-    # Test invalid SVD method
-    with pytest.raises(ValueError):
-        SSA(window_size=10, svd_method="invalid")
-    
-    # Test invalid n_components
-    with pytest.raises(ValueError):
-        SSA(window_size=10, n_components=11)
-
-def test_decomposition_reconstruction():
+def test_basic_decompose_initialization():
     # Generate synthetic data
     t = np.linspace(0, 2*np.pi, 100)
     series = np.sin(t) + 0.5*np.sin(3*t)
     
-    # Test decomposition
-    ssa = SSA(window_size=20)
-    components = ssa.decompose(series)
+    # Test valid initialization with default parameters
+    decomposer = Decompose(time_series=series, window_size=10)
+    assert decomposer.window_size == 10
+    assert decomposer.svd_method == "full"
+    
+    # Test with randomized SVD
+    decomposer = Decompose(time_series=series, window_size=10, svd_method="randomized")
+    assert decomposer.window_size == 10
+    assert decomposer.svd_method == "randomized"
+    
+    # Test invalid SVD method
+    with pytest.raises(ValueError):
+        Decompose(time_series=series, window_size=10, svd_method="invalid")
+
+def test_toeplitz_decompose_initialization():
+    # Generate synthetic data
+    t = np.linspace(0, 2*np.pi, 100)
+    series = np.sin(t) + 0.5*np.sin(3*t)
+    
+    # Test valid initialization
+    decomposer = Decompose(time_series=series, window_size=10, method="toeplitz")
+    assert decomposer.window_size == 10
+    
+    # Test that SVD method raises error for Toeplitz
+    with pytest.raises(ValueError):
+        Decompose(time_series=series, window_size=10, method="toeplitz", svd_method="full")
+    
+    # Test invalid method
+    with pytest.raises(ValueError):
+        Decompose(time_series=series, window_size=10, method="invalid")
+
+def test_basic_decomposition_reconstruction():
+    # Generate synthetic data
+    t = np.linspace(0, 2*np.pi, 100)
+    series = np.sin(t) + 0.5*np.sin(3*t)
+    
+    # Test basic decomposition
+    decomposer = Decompose(time_series=series, window_size=20)
+    decomposer.fit()
+    
+    # Check components attribute exists
+    assert hasattr(decomposer, "components")
     
     # Check number of components
-    assert len(components) == 20
+    assert len(decomposer.components) == np.linalg.matrix_rank(decomposer.trajectory_matrix)
     
     # Test reconstruction with single component
-    reconstructed = ssa.reconstruct([0])
-    assert reconstructed.shape == series.shape
+    reconstructed = reconstruct(decomposer, [[0]])
+    assert reconstructed.shape[0] == 1  # One group
+    assert reconstructed[0].shape[0] == len(series)
     
     # Test reconstruction with multiple components
-    reconstructed = ssa.reconstruct([0, 1])
-    assert reconstructed.shape == series.shape
+    reconstructed = reconstruct(decomposer, [[0, 1]])
+    assert reconstructed.shape[0] == 1  # One group
+    assert reconstructed[0].shape[0] == len(series)
     
-    # Test reconstruction with grouped components
-    reconstructed = ssa.reconstruct([[0], [1, 2]])
-    assert reconstructed.shape == series.shape
+    # Test reconstruction with multiple groups
+    reconstructed = reconstruct(decomposer, [[0], [1, 2]])
+    assert reconstructed.shape[0] == 2  # Two groups
+    assert reconstructed[0].shape[0] == len(series)
+    assert reconstructed[1].shape[0] == len(series)
 
-def test_toeplitz_decomposition():
+def test_toeplitz_decomposition_reconstruction():
     # Generate synthetic data
     t = np.linspace(0, 2*np.pi, 100)
     series = np.sin(t) + 0.5*np.sin(3*t)
     
     # Test Toeplitz decomposition
-    ssa = SSA(window_size=20, ssa_method="toeplitz")
-    components = ssa.decompose(series)
+    decomposer = Decompose(time_series=series, window_size=20, method="toeplitz")
+    decomposer.fit()
     
-    # Check number of components
-    assert len(components) == 20
+    # Check components attribute exists
+    assert hasattr(decomposer, "components")
+    
+    # Check number of components equals window_size
+    assert len(decomposer.components) == decomposer.window_size
     
     # Test reconstruction with single component
-    reconstructed = ssa.reconstruct([0])
-    assert reconstructed.shape == series.shape
+    reconstructed = reconstruct(decomposer, [[0]])
+    assert reconstructed.shape[0] == 1  # One group
+    assert reconstructed[0].shape[0] == len(series)
     
     # Test reconstruction with multiple components
-    reconstructed = ssa.reconstruct([0, 1])
-    assert reconstructed.shape == series.shape
+    reconstructed = reconstruct(decomposer, [[0, 1]])
+    assert reconstructed.shape[0] == 1  # One group
+    assert reconstructed[0].shape[0] == len(series)
     
-    # Test reconstruction with grouped components
-    reconstructed = ssa.reconstruct([[0], [1, 2]])
-    assert reconstructed.shape == series.shape
+    # Test reconstruction with multiple groups
+    reconstructed = reconstruct(decomposer, [[0], [1, 2]])
+    assert reconstructed.shape[0] == 2  # Two groups
+    assert reconstructed[0].shape[0] == len(series)
+    assert reconstructed[1].shape[0] == len(series)
 
-def test_ssa_method():
+def test_reconstruct_validation():
     # Generate synthetic data
     t = np.linspace(0, 2*np.pi, 100)
     series = np.sin(t) + 0.5*np.sin(3*t)
     
-    # Test ssa method
-    ssa = SSA(window_size=20)
-    reconstructed = ssa.ssa(series, [[0], [1, 2]])
+    # Create decomposer without fitting
+    decomposer = Decompose(time_series=series, window_size=20)
     
-    # Check shape
-    assert reconstructed.shape == series.shape
+    # Test that reconstruct raises ValueError if decompose not called
+    with pytest.raises(ValueError):
+        reconstruct(decomposer, [[0]])
+    
+    # Now fit and ensure it works
+    decomposer.fit()
+    reconstructed = reconstruct(decomposer, [[0]])
+    assert reconstructed.shape[0] == 1
