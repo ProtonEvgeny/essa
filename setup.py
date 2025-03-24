@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="essa",
-    version="0.1",
+    version="0.2",
     author="Eugene Turov",
     author_email="linker0broadcast@gmail.com",
     description="Easy Singular Spectrum Analysis (SSA) implementation for Python",
@@ -15,6 +15,7 @@ setup(
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Mathematics",
