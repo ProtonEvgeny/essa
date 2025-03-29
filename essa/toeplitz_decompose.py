@@ -17,6 +17,12 @@ class ToeplitzDecompose(BasicDecompose):
         The size of the embedding window.
     time_series_centered : np.ndarray
         The centered version of the time series.
+    ts_size : int
+        The size of the time series.
+    trajectory_matrix : np.ndarray
+        The constructed trajectory matrix from the time series.
+    components : List[np.ndarray]
+        List of elementary matrices constructed from the Toeplitz covariance matrix
 
     Methods
     -------
