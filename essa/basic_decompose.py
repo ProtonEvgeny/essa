@@ -138,7 +138,7 @@ class BasicDecompose:
         from numpy.linalg.
         """
         U, s, Vt = self._svd(self.trajectory_matrix)
-        d = np.linalg.matrix_rank(self.trajectory_matrix)
+        d = np.linalg.matrix_rank(self.trajectory_matrix) if self.svd_method == "full" else self.window_size // 2 - 1
         V = Vt.T
 
         return U, s, V, d
