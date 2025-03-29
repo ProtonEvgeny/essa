@@ -17,6 +17,12 @@ class ToeplitzDecompose(BasicDecompose):
         The size of the embedding window.
     time_series_centered : np.ndarray
         The centered version of the time series.
+    ts_size : int
+        The size of the time series.
+    trajectory_matrix : np.ndarray
+        The constructed trajectory matrix from the time series.
+    components : List[np.ndarray]
+        List of elementary matrices constructed from the Toeplitz covariance matrix
 
     Methods
     -------
@@ -58,16 +64,10 @@ class ToeplitzDecompose(BasicDecompose):
         L = self.window_size
         N = self.ts_size
         centered_series = self.time_series_centered
-        C_tilde = np.zeros((L, L))
-        for k in range(L):
-            if k >= N:
-                continue
-            val = np.sum(centered_series[: N - k] * centered_series[k:]) / (N - k)
-            for i in range(L - k):
-                C_tilde[i, i + k] = val
-                C_tilde[i + k, i] = val
-                
-        return C_tilde
+        covs = np.correlate(centered_series, centered_series, mode='full')[N - 1:]
+        covs[: L] /= np.arange(N, N - L, -1)
+        covs[L:] /= np.arange(N - L, 0, -1)
+        return np.fromfunction(lambda i, j: covs[np.abs(i - j)], (L, L), dtype=int)
 
     def _decompose_toeplitz_matrix(self, trajectory_matrix: np.ndarray) -> List[np.ndarray]:
         """
@@ -92,13 +92,13 @@ class ToeplitzDecompose(BasicDecompose):
         """
         X = trajectory_matrix
         C_tilde = self._toeplitz_matrix()
-        _, eigen_vecs = np.linalg.eigh(C_tilde)
-        sigma = [np.linalg.norm(X.T @ eigen_vecs[:, i]) for i in range(self.window_size)]
-        order = np.argsort(sigma)[::-1]
+        eigen_vals, eigen_vecs = np.linalg.eigh(C_tilde)
+        order = np.argsort(eigen_vals)[::-1]
         elementary_matrices = []
         for idx in order:
-            P = eigen_vecs[:, idx]
-            elementary_matrix = np.outer(P, X.T @ P)
+            eigen_val = eigen_vals[idx]
+            eigen_vec = eigen_vecs[:, idx]
+            elementary_matrix = eigen_val * np.outer(eigen_vec, X.T @ eigen_vec)
             elementary_matrices.append(elementary_matrix)
 
         return elementary_matrices

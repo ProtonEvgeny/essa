@@ -68,11 +68,11 @@ class BasicDecompose:
         np.ndarray
             Trajectory matrix of size (window_size, ts_size - window_size + 1)
         """
-        X = np.zeros((self.window_size, self.ts_size - self.window_size + 1))
-        for i in range(self.ts_size - self.window_size + 1):
-            X[:, i] = self.time_series[i : i + self.window_size]
-
-        return X
+        return np.lib.stride_tricks.as_strided(
+            self.time_series,
+            shape=(self.window_size, self.ts_size - self.window_size + 1),
+            strides=(self.time_series.itemsize, self.time_series.itemsize),
+        )
 
     def _svd(self, matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -138,7 +138,7 @@ class BasicDecompose:
         from numpy.linalg.
         """
         U, s, Vt = self._svd(self.trajectory_matrix)
-        d = np.linalg.matrix_rank(self.trajectory_matrix)
+        d = np.linalg.matrix_rank(self.trajectory_matrix) if self.svd_method == "full" else self.window_size // 2 - 1
         V = Vt.T
 
         return U, s, V, d

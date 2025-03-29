@@ -18,7 +18,7 @@ stationary_noise = 0.7 * np.random.randn(len(t))
 stationary_series = stationary_seasonal + stationary_noise
 
 # --- Basic SSA ---
-non_stationary_decomposer = Decompose(time_series=non_stationary_series, window_size=60)
+non_stationary_decomposer = Decompose(time_series=non_stationary_series, window_size=60, svd_method="randomized")
 non_stationary_decomposer.fit()
 
 # Reconstruct decomposed series
