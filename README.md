@@ -15,6 +15,10 @@ pip install essa
 - Simple API for decomposition and reconstruction
 - Compatible with NumPy arrays
 
+## Documentation
+
+Documentation is available at [Read the Docs](https://essa.readthedocs.io/).
+
 ## Usage Example
 
 ```python
