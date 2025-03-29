@@ -10,7 +10,6 @@ pip install essa
 
 ## Features
 
-- Fast implementation of SSA using vectorized operations
 - Support for both full SVD and randomized SVD for large datasets
 - Support for Toeplitz SSA method for stationary series
 - Simple API for decomposition and reconstruction
