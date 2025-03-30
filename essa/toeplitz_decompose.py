@@ -1,6 +1,6 @@
 from .basic_decompose import BasicDecompose
 import numpy as np
-from typing import List
+from typing import List, Tuple
 
 class ToeplitzDecompose(BasicDecompose):
     """
@@ -21,6 +21,12 @@ class ToeplitzDecompose(BasicDecompose):
         The size of the time series.
     trajectory_matrix : np.ndarray
         The constructed trajectory matrix from the time series.
+    U : np.ndarray
+        Left singular vectors.
+    sigma : np.ndarray
+        Singular values.
+    V : np.ndarray
+        Right singular vectors.
     d : int
         The rank of the trajectory matrix
     components : List[np.ndarray]
@@ -71,7 +77,7 @@ class ToeplitzDecompose(BasicDecompose):
         covs[L:] /= np.arange(N - L, 0, -1)
         return np.fromfunction(lambda i, j: covs[np.abs(i - j)], (L, L), dtype=int)
 
-    def _decompose_toeplitz_matrix(self, trajectory_matrix: np.ndarray) -> List[np.ndarray]:
+    def _decompose_toeplitz_matrix(self, trajectory_matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[np.ndarray]]:
         """
         Decompose the trajectory matrix using the Toeplitz covariance matrix.
 
@@ -82,28 +88,43 @@ class ToeplitzDecompose(BasicDecompose):
 
         Returns
         -------
-        List[np.ndarray]
-            A list of elementary matrices
+        Tuple[np.ndarray, np.ndarray, np.ndarray, List[np.ndarray]]
+            A tuple containing the sorted left singular vectors, sorted singular values,
+            sorted right singular vectors, and a list of elementary matrices
 
         Notes
         -----
-        This method uses the eigenvectors of the Toeplitz covariance matrix to
-        decompose the trajectory matrix into its elementary matrices. The
-        elementary matrices are then ordered in descending order of their
-        importance, which is determined by their norm.
+        The eigenvalues of the covariance matrix of the time series are used to
+        compute the singular values of the trajectory matrix. The singular vectors
+        are computed by projecting the columns of the trajectory matrix onto the
+        eigenvectors of the covariance matrix. The elementary matrices are computed
+        by taking the outer product of the left singular vectors with the right
+        singular vectors.
         """
         X = trajectory_matrix
         C_tilde = self._toeplitz_matrix()
         eigen_vals, eigen_vecs = np.linalg.eigh(C_tilde)
-        order = np.argsort(eigen_vals)[::-1]
-        elementary_matrices = []
+
+        # Calculate the norm of the projection of X onto each eigenvector
+        sigma = [np.linalg.norm(X.T @ eigen_vecs[:, i]) for i in range(self.window_size)]
+        order = np.argsort(sigma)[::-1] # sort in descending order
+        U_sorted = eigen_vecs[:, order]
+        sigma_sorted = np.array(sigma)[order]
+
+        V_columns = []
+        elementary_matrices: List[np.ndarray] = []
         for idx in order:
-            eigen_val = eigen_vals[idx]
-            eigen_vec = eigen_vecs[:, idx]
-            elementary_matrix = eigen_val * np.outer(eigen_vec, X.T @ eigen_vec)
+            P = eigen_vecs[:, idx]
+            proj = X.T @ P
+            sigma_i = sigma[idx]
+            V_i = proj / sigma_i # Scale the projection by the corresponding singular value
+            V_columns.append(V_i)
+            elementary_matrix = np.outer(P, proj)
             elementary_matrices.append(elementary_matrix)
 
-        return elementary_matrices
+        V_sorted = np.column_stack(V_columns)
+
+        return U_sorted, sigma_sorted, V_sorted, elementary_matrices
 
     def fit(self) -> None:
         """
@@ -123,9 +144,10 @@ class ToeplitzDecompose(BasicDecompose):
 
         - `self.trajectory_matrix`: The trajectory matrix of the time series
         - `self.d`: The rank of the trajectory matrix
+        - `self.U`, `self.sigma`, `self.V`: The singular vectors and singular values
         - `self.components`: The elementary matrices constructed from the
           Toeplitz covariance matrix
         """
         self.trajectory_matrix = self._trajectory_matrix()
-        self.d = np.linalg.matrix_rank(self.trajectory_matrix)
-        self.components = self._decompose_toeplitz_matrix(self.trajectory_matrix)
+        self.U, self.sigma, self.V, self.components = self._decompose_toeplitz_matrix(self.trajectory_matrix)
+        self.d = len(self.sigma)
