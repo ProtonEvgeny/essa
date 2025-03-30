@@ -95,3 +95,14 @@ plt.grid(True)
 
 plt.tight_layout()
 plt.show()
+
+# Visualize eigenvectors
+plt.figure(figsize=(12, 8))
+for i in range(8):
+    plt.subplot(2, 4, i + 1)
+    plt.plot(stationary_decomposer.U[:, i])
+    plt.title(f"Eigenvector {i + 1}")
+    plt.grid(True)
+
+plt.tight_layout()
+plt.show()
