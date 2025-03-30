@@ -21,6 +21,8 @@ class ToeplitzDecompose(BasicDecompose):
         The size of the time series.
     trajectory_matrix : np.ndarray
         The constructed trajectory matrix from the time series.
+    d : int
+        The rank of the trajectory matrix
     components : List[np.ndarray]
         List of elementary matrices constructed from the Toeplitz covariance matrix
 
@@ -120,8 +122,10 @@ class ToeplitzDecompose(BasicDecompose):
         This method sets the following attributes:
 
         - `self.trajectory_matrix`: The trajectory matrix of the time series
+        - `self.d`: The rank of the trajectory matrix
         - `self.components`: The elementary matrices constructed from the
           Toeplitz covariance matrix
         """
         self.trajectory_matrix = self._trajectory_matrix()
+        self.d = np.linalg.matrix_rank(self.trajectory_matrix)
         self.components = self._decompose_toeplitz_matrix(self.trajectory_matrix)
