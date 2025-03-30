@@ -99,6 +99,13 @@ reconstruct(decomposer, groups)
 
 - Array of reconstructed components for each group
 
+## References
+
+- Golyandina N., Korobeynikov A., Zhigljavsky A. (2018): Singular Spectrum Analysis with R. Use
+R!. Springer, Berlin, Heidelberg.
+- Golyandina, N., Nekrutkin, V. and Zhigljavsky, A. (2001): Analysis of Time Series Structure: SSA
+and related techniques. Chapman and Hall/CRC. ISBN 1584881941
+
 ## License
 
 MIT License
